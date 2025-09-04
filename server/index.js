@@ -29,15 +29,16 @@ function must(name) {
 }
 
 // ===================== API INITIALIZATIONS =====================
-const SERVICE_ACCOUNT_KEY_PATH = './ServiceAccountKey.json'; 
+const SERVICE_ACCOUNT_KEY_PATH = './ServiceAccountKey.json';
 
 try {
   const serviceAccount = require(SERVICE_ACCOUNT_KEY_PATH);
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
   });
+  console.log('Firebase Admin SDK initialized.');
 } catch (e) {
-  console.error("Firebase Admin initialization failed. Make sure 'serviceAccountKey.json' exists and is valid.");
+  console.error("Firebase Admin initialization failed. Make sure 'ServiceAccountKey.json' exists and is valid.");
   process.exit(1); 
 }
 const db = admin.firestore();
@@ -188,7 +189,7 @@ function formatRFC3339Local(date, timeZone = 'Asia/Jakarta', offset = '+07:00') 
 function parseStructuredSchedule(day, timeStartStr, timeEndStr) {
   console.log('Memulai parsing waktu dari data terstruktur:', { day, timeStartStr, timeEndStr });
   const dayMap = { 'minggu':0,'senin':1,'selasa':2,'rabu':3,'kamis':4,'jumat':5,'sabtu':6 };
-  const monthMap = { 'januari':0,'februari':1,'maret':2,'april':3,'mei':4,'juni':5,'juli':6,'agustus':7,'september':8,'oktober':9,'november':10,'desember':11 };
+  const monthMap = { 'januari':0,'februari':1,'maret':2,'april':3,'mei':5,'juni':5,'juli':6,'agustus':7,'september':8,'oktober':9,'november':10,'desember':11 };
 
   let startTime=null, endTime=null, recurrence=null;
   const today=new Date(); let targetDate=new Date();
@@ -224,26 +225,51 @@ function parseStructuredSchedule(day, timeStartStr, timeEndStr) {
   return { startTime, endTime, recurrence, hadExplicitTime: !!(timeStartStr||timeEndStr) };
 }
 
-// ----------------- HELPERS: Gmail parsing -----------------
-function decodeBase64Url(str) {
-  return Buffer.from(str.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
-}
-function extractPlainText(payload) {
-  if (!payload) return '';
-  const mime = payload.mimeType || '';
-  if (mime === 'text/plain' && payload.body?.data) return decodeBase64Url(payload.body.data);
-  if (payload.parts && Array.isArray(payload.parts)) {
-    for (const p of payload.parts) {
-      const t = extractPlainText(p);
-      if (t) return t;
+// Helper untuk mengirim notifikasi FCM
+async function sendPushNotification(title, body) {
+  try {
+    const snapshot = await db.collection('fcmTokens').get();
+    const tokens = snapshot.docs.map(doc => doc.id);
+
+    if (tokens.length === 0) {
+      console.warn('Tidak ada token FCM yang terdaftar.');
+      return;
     }
+
+    const message = {
+      notification: { title, body },
+      tokens: tokens,
+    };
+    
+    // Gunakan instance Firebase Admin SDK yang default
+    const response = await admin.messaging().sendMulticast(message);
+    console.log('Notifikasi terkirim:', response.successCount);
+  } catch (error) {
+    console.error('Error saat mengirim notifikasi:', error);
   }
-  return '';
 }
-function getHeader(headers, name) {
-  const h = headers?.find(x => x.name?.toLowerCase() === name.toLowerCase());
-  return h ? h.value : '';
-}
+
+// ----------------- Jadwal Notifikasi Pagi Hari -----------------
+setInterval(async () => {
+    const now = new Date();
+    // Kirim notifikasi setiap hari pukul 06:00 WIB
+    if (now.getHours() === 6 && now.getMinutes() === 0) {
+        console.log('Mengecek jadwal untuk notifikasi pagi...');
+        const todayStart = new Date(now);
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date(now);
+        todayEnd.setHours(23, 59, 59, 999);
+
+        const snapshot = await db.collection('schedules')
+            .where('date', '>=', admin.firestore.Timestamp.fromDate(todayStart))
+            .where('date', '<=', admin.firestore.Timestamp.fromDate(todayEnd))
+            .orderBy('date', 'asc')
+            .get();
+
+        const schedules = snapshot.docs.map(doc => doc.data().content).join(', ') || 'tidak ada jadwal.';
+        await sendPushNotification('Jadwal Hari Ini', `Selamat pagi! Hari ini ada: ${schedules}`);
+    }
+}, 60000); // Cek setiap menit
 
 // ----------------- ROUTES: Chat utama -----------------
 app.post('/api/chat', async (req, res) => {
@@ -625,8 +651,14 @@ app.post('/api/chat', async (req, res) => {
       });
 
       let resp=`Pengeluaran "${item}" sebesar Rp${Math.abs(amount).toLocaleString('id-ID')} dicatat.`;
-      if (Math.abs(dailyTotal)>DAILY_FOOD_BUDGET) resp+=`\n⚠️ Melebihi limit harian Rp${DAILY_FOOD_BUDGET.toLocaleString('id-ID')}.`;
-      if (Math.abs(weeklyTotal)>WEEKLY_BUDGET) resp+=`\n⚠️ Melebihi limit mingguan Rp${WEEKLY_BUDGET.toLocaleString('id-ID')}.`;
+      if (Math.abs(dailyTotal)>DAILY_FOOD_BUDGET) {
+        resp+=`\n⚠️ Melebihi limit harian Rp${DAILY_FOOD_BUDGET.toLocaleString('id-ID')}.`;
+        await sendPushNotification('Peringatan Budget Harian', `Pengeluaran harianmu melebihi budget. Sisa budget hari ini: Rp${(DAILY_FOOD_BUDGET - Math.abs(dailyTotal)).toLocaleString('id-ID')}`);
+      }
+      if (Math.abs(weeklyTotal)>WEEKLY_BUDGET) {
+        resp+=`\n⚠️ Melebihi limit mingguan Rp${WEEKLY_BUDGET.toLocaleString('id-ID')}.`;
+        await sendPushNotification('Peringatan Budget Mingguan', `Pengeluaran mingguanmu melebihi budget. Sisa budget minggu ini: Rp${(WEEKLY_BUDGET - Math.abs(weeklyTotal)).toLocaleString('id-ID')}`);
+      }
       return res.json({ text: resp });
     }
 
@@ -679,41 +711,17 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// ----------------- ROUTE: Gmail Search langsung (opsional) -----------------
-app.post('/api/gmail/search', async (req, res) => {
+// ----------------- ROUTES: Pendaftaran Token FCM -----------------
+app.post('/api/register-token', async (req, res) => {
+  const { token } = req.body;
+  if (!token) return res.status(400).send('FCM token is required.');
+
   try {
-    const { query = 'newer_than:30d', max = 10 } = req.body || {};
-    const gmail = getGmailClientOrThrow();
-    const list = await gmail.users.messages.list({ userId: 'me', q: query, maxResults: Math.min(max, 20) });
-    const ids = (list.data.messages || []).map(m => m.id);
-    if (ids.length === 0) return res.json({ text: `Tidak ada email untuk query: ${query}`, emails: [] });
-
-    const emails = [];
-    for (const id of ids) {
-      const msg = await gmail.users.messages.get({ userId: 'me', id, format: 'full' });
-      const payload = msg.data.payload || {};
-      const headers = payload.headers || [];
-      emails.push({
-        id,
-        subject: getHeader(headers, 'Subject'),
-        from: getHeader(headers, 'From'),
-        date: getHeader(headers, 'Date'),
-        snippet: msg.data.snippet || '',
-        body: (extractPlainText(payload) || msg.data.snippet || '').slice(0, 4000),
-      });
-    }
-
-    const toSummarize = emails.map((d, i) => `#${i+1} - ${d.subject}\nFrom: ${d.from}\nDate: ${d.date}\n---\n${d.body}\n`).join('\n\n');
-    const sumResp = await new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-      .getGenerativeModel({ model: 'gemini-1.5-flash' })
-      .generateContent(`Ringkas maksimal 6 poin (Bahasa Indonesia) dari email berikut. Sertakan "Tindakan" jika ada: \n\n${toSummarize}`);
-    const summary = sumResp.response.text();
-
-    res.json({ text: summary, meta: { query, emails: emails.map(e => ({ subject:e.subject, from:e.from, date:e.date, snippet:e.snippet })) } });
-  } catch (e) {
-    if (e.authUrl) return res.status(401).json({ error: 'Gmail belum terhubung.', auth_url: e.authUrl });
-    console.error('API /api/gmail/search error:', e.message);
-    res.status(500).json({ error: 'Gagal mencari/summarize Gmail.' });
+    await db.collection('fcmTokens').doc(token).set({ timestamp: admin.firestore.FieldValue.serverTimestamp() });
+    res.status(200).send('FCM token berhasil didaftarkan.');
+  } catch (error) {
+    console.error('Error saat mendaftarkan token:', error);
+    res.status(500).send('Gagal mendaftarkan token.');
   }
 });
 
