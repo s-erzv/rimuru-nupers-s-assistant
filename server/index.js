@@ -3,10 +3,10 @@ const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const admin = require('firebase-admin');
 const { google } = require('googleapis');
-const fs = require('fs');
-const path = require('path');
+// const fs = require('fs'); // Tidak lagi dibutuhkan untuk membaca file kredensial
+// const path = require('path'); // Tidak lagi dibutuhkan untuk membaca file kredensial
 const { autoSchedule } = require('./autoScheduler');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -29,28 +29,37 @@ function must(name) {
 }
 
 // ===================== API INITIALIZATIONS =====================
-const SERVICE_ACCOUNT_KEY_PATH = './ServiceAccountKey.json';
 
+// --- PERUBAHAN: Gunakan FIREBASE_SERVICE_ACCOUNT_JSON untuk Firebase Admin SDK ---
 try {
-  const serviceAccount = require(SERVICE_ACCOUNT_KEY_PATH);
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
   });
-  console.log('Firebase Admin SDK initialized.');
+  console.log('Firebase Admin SDK initialized from environment variable.');
 } catch (e) {
-  console.error("Firebase Admin initialization failed. Make sure 'ServiceAccountKey.json' exists and is valid.");
+  console.error("Firebase Admin initialization failed. Check FIREBASE_SERVICE_ACCOUNT_JSON environment variable.");
   process.exit(1); 
 }
 const db = admin.firestore();
 
+// --- PERUBAHAN: Gunakan GOOGLE_CALENDAR_SHEETS_SERVICE_ACCOUNT_JSON untuk Sheets & Calendar ---
+let sheetsAndCalendarServiceAccount;
+try {
+  sheetsAndCalendarServiceAccount = JSON.parse(process.env.GOOGLE_CALENDAR_SHEETS_SERVICE_ACCOUNT_JSON);
+} catch (e) {
+  console.error("Failed to parse GOOGLE_CALENDAR_SHEETS_SERVICE_ACCOUNT_JSON:", e.message);
+  process.exit(1);
+}
+
 const sheetsAuth = new google.auth.GoogleAuth({
-  keyFile: SERVICE_ACCOUNT_KEY_PATH,
+  credentials: sheetsAndCalendarServiceAccount,
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 const sheets = google.sheets({ version: 'v4', auth: sheetsAuth });
 
 const calendarAuth = new google.auth.GoogleAuth({
-  keyFile: SERVICE_ACCOUNT_KEY_PATH,
+  credentials: sheetsAndCalendarServiceAccount,
   scopes: ['https://www.googleapis.com/auth/calendar'],
 });
 const calendar = google.calendar({ version: 'v3', auth: calendarAuth });
@@ -63,15 +72,17 @@ const oauth2ClientTasks = new google.auth.OAuth2(
 );
 
 const TASKS_SCOPES = ['https://www.googleapis.com/auth/tasks'];
-const TOKEN_TASKS_PATH = path.join(__dirname, 'tasks-token.json');
-
-if (fs.existsSync(TOKEN_TASKS_PATH)) {
+// --- PERUBAHAN: Baca token Tasks dari environment variable ---
+if (process.env.GOOGLE_OAUTH_TASKS_TOKEN_JSON) {
   try {
-    oauth2ClientTasks.setCredentials(JSON.parse(fs.readFileSync(TOKEN_TASKS_PATH, 'utf-8')));
-    console.log('[Tasks OAuth] token dimuat.');
-  } catch {}
+    oauth2ClientTasks.setCredentials(JSON.parse(process.env.GOOGLE_OAUTH_TASKS_TOKEN_JSON));
+    console.log('[Tasks OAuth] token dimuat dari environment variable.');
+  } catch (e) {
+    console.error('Failed to parse GOOGLE_OAUTH_TASKS_TOKEN_JSON:', e.message);
+  }
 }
 
+// --- PERUBAHAN: Hapus penulisan file ke disk di lingkungan produksi ---
 app.get('/auth/google', (req, res) => {
   const url = oauth2ClientTasks.generateAuthUrl({
     access_type: 'offline',
@@ -85,8 +96,9 @@ app.get('/oauth2callback', async (req, res) => {
   try {
     const { tokens } = await oauth2ClientTasks.getToken(req.query.code);
     oauth2ClientTasks.setCredentials(tokens);
-    fs.writeFileSync(TOKEN_TASKS_PATH, JSON.stringify(tokens, null, 2));
-    res.send('Google Tasks terhubung! Kamu bisa tutup tab ini.');
+    // fs.writeFileSync(TOKEN_TASKS_PATH, JSON.stringify(tokens, null, 2)); // Hapus baris ini
+    res.send(`Google Tasks terhubung! Salin token ini dan simpan di variabel lingkungan GOOGLE_OAUTH_TASKS_TOKEN_JSON:<br/><br/>
+              <pre>${JSON.stringify(tokens, null, 2)}</pre><br/><br/>Kamu bisa tutup tab ini.`);
   } catch (e) {
     console.error('OAuth Tasks error:', e.message);
     res.status(500).send('Gagal OAuth Tasks.');
@@ -112,15 +124,17 @@ const oauth2ClientGmail = new google.auth.OAuth2(
 );
 
 const GMAIL_SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
-const TOKEN_GMAIL_PATH = path.join(__dirname, 'gmail-token.json');
-
-if (fs.existsSync(TOKEN_GMAIL_PATH)) {
+// --- PERUBAHAN: Baca token Gmail dari environment variable ---
+if (process.env.GOOGLE_OAUTH_GMAIL_TOKEN_JSON) {
   try {
-    oauth2ClientGmail.setCredentials(JSON.parse(fs.readFileSync(TOKEN_GMAIL_PATH, 'utf-8')));
-    console.log('[Gmail OAuth] token dimuat.');
-  } catch {}
+    oauth2ClientGmail.setCredentials(JSON.parse(process.env.GOOGLE_OAUTH_GMAIL_TOKEN_JSON));
+    console.log('[Gmail OAuth] token dimuat dari environment variable.');
+  } catch(e) {
+    console.error('Failed to parse GOOGLE_OAUTH_GMAIL_TOKEN_JSON:', e.message);
+  }
 }
 
+// --- PERUBAHAN: Hapus penulisan file ke disk di lingkungan produksi ---
 app.get('/auth/gmail', (req, res) => {
   const url = oauth2ClientGmail.generateAuthUrl({
     access_type: 'offline',
@@ -134,8 +148,9 @@ app.get('/oauth2callback_gmail', async (req, res) => {
   try {
     const { tokens } = await oauth2ClientGmail.getToken(req.query.code);
     oauth2ClientGmail.setCredentials(tokens);
-    fs.writeFileSync(TOKEN_GMAIL_PATH, JSON.stringify(tokens, null, 2));
-    res.send('Gmail terhubung! Kamu bisa tutup tab ini.');
+    // fs.writeFileSync(TOKEN_GMAIL_PATH, JSON.stringify(tokens, null, 2)); // Hapus baris ini
+    res.send(`Gmail terhubung! Salin token ini dan simpan di variabel lingkungan GOOGLE_OAUTH_GMAIL_TOKEN_JSON:<br/><br/>
+              <pre>${JSON.stringify(tokens, null, 2)}</pre><br/><br/>Kamu bisa tutup tab ini.`);
   } catch (e) {
     console.error('OAuth Gmail error:', e.message);
     res.status(500).send('Gagal OAuth Gmail.');
@@ -159,7 +174,7 @@ const SPREADSHEET_ID = '144JyNngIWCm97EAgUEmNphCExkxSaxd6KDSsIVPytIY';
 const WEEKLY_BUDGET = 500000;
 const DAILY_FOOD_BUDGET = 50000;
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(must('GEMINI_API_KEY')); // Menambahkan must() untuk API Key Gemini
 const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 // --- MENGIMPOR ATURAN AI DARI FILE TERPISAH ---
