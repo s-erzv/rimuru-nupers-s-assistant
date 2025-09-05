@@ -11,10 +11,16 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const app = express();
 const port = process.env.PORT || 5000;
 
+import cors from 'cors';
+
 const corsOptions = {
-  origin: 'https://rimuru.up.railway.app/',
+  origin: [
+    'https://rimuru.up.railway.app',
+    'https://rimuru-backend.up.railway.app',
+    'http://localhost:5173'
+  ],
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type','Authorization'],
   credentials: true
 };
 app.use(cors(corsOptions));
@@ -788,3 +794,10 @@ app.get('/api/finances', async (req, res) => {
   const finances = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _seconds: doc.data().date?._seconds }));
   res.json(finances);
 });
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('API listening on', PORT);
+});
+
+app.get('/healthz', (_, res) => res.send('ok'));

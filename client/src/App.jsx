@@ -214,6 +214,59 @@ function FinanceList({ finances }) {
 }
 
 // ————————————————————————————————————————————————
+// Settings Page — added for health check
+// ————————————————————————————————————————————————
+function SettingsPage() {
+  const [healthStatus, setHealthStatus] = useState('Checking...');
+  const [tone, setTone] = useState('default');
+
+  const fetchHealthz = async () => {
+    try {
+      setHealthStatus('Checking...');
+      setTone('default');
+      const res = await fetchWithAuth('/api/healthz');
+      if (res.ok) {
+        setHealthStatus('OK');
+        setTone('positive');
+      } else {
+        setHealthStatus('Error');
+        setTone('negative');
+      }
+    } catch (err) {
+      setHealthStatus('Error');
+      setTone('negative');
+      console.error('Health check failed', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchHealthz();
+  }, []);
+
+  return (
+    <div className="p-6">
+      <SectionHeader
+        title="Settings"
+        subtitle="Application status"
+        icon={
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.178.11.37.206.572.288z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        }
+      />
+      <Card className="p-4 mb-3 flex items-center justify-between">
+        <div className="text-sm font-medium text-slate-900">Backend Connection</div>
+        <Badge tone={tone}>{healthStatus}</Badge>
+      </Card>
+      <button onClick={fetchHealthz} className="w-full rounded-md border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+        Retry
+      </button>
+    </div>
+  );
+}
+
+// ————————————————————————————————————————————————
 // Main App Component
 // ————————————————————————————————————————————————
 function MainApp() {
@@ -225,6 +278,9 @@ function MainApp() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isFirstLoad, setIsFirstLoad] = useState(true);
 
+  // Use base URL for production and relative path for dev proxy
+  const API_BASE_URL = import.meta.env.PROD ? import.meta.env.VITE_API_BASE : '';
+  
   const fetchWithAuth = async (url, options = {}) => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -232,7 +288,7 @@ function MainApp() {
         throw new Error('No auth token found');
     }
     const headers = { ...options.headers, 'Authorization': token };
-    const response = await fetch(url, { ...options, headers });
+    const response = await fetch(`${API_BASE_URL}${url}`, { ...options, headers });
     if (response.status === 401) {
         localStorage.removeItem('auth_token');
         window.location.reload();
@@ -281,8 +337,8 @@ function MainApp() {
   const fetchAllData = async () => {
     try {
       const [schedulesRes, financesRes] = await Promise.all([
-        fetchWithAuth('https://rimuru-backend.up.railway.app/api/schedules'),
-        fetchWithAuth('https://rimuru-backend.up.railway.app/api/finances'),
+        fetchWithAuth('/api/schedules'),
+        fetchWithAuth('/api/finances'),
       ]);
       if (!schedulesRes.ok || !financesRes.ok) throw new Error('Failed to fetch from server.');
       const schedulesData = await schedulesRes.json();
@@ -479,7 +535,7 @@ function MainApp() {
               </div>
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'data' ? (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card className="h-auto lg:h-[calc(100vh-220px)] overflow-y-auto">
               <ScheduleList schedules={schedules} />
@@ -488,6 +544,8 @@ function MainApp() {
               <FinanceList finances={finances} />
             </Card>
           </div>
+        ) : (
+          <SettingsPage />
         )}
       </div>
 
@@ -509,6 +567,16 @@ function MainApp() {
             icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h18M3 9h18M3 15h18M3 21h18" />
+              </svg>
+            }
+          />
+          <TabButton
+            id="settings"
+            label="Settings"
+            icon={
+              <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.178.11.37.206.572.288z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             }
           />
