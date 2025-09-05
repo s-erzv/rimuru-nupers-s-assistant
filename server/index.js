@@ -873,6 +873,6 @@ app.get('/api/tasks', async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-  checkTaskDeadlinesAndNotify();
+  console.log(`Server is running ea`);
+  checkTaskDeadlinesAndNotify(); 
 });
