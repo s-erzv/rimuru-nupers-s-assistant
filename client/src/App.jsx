@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { initializeApp, getApps } from 'firebase/app';
 import { getMessaging, getToken, isSupported } from 'firebase/messaging';
+import { firebaseConfig } from './firebaseConfig';
 
 const formatIDDateTime = (seconds) => {
   try {
@@ -155,7 +156,7 @@ function FinanceList({ finances }) {
         subtitle="Transactions overview"
         icon={
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0-2.08-.402-2.599-1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
           </svg>
         }
       />
@@ -223,26 +224,23 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isFirstLoad, setIsFirstLoad] = useState(true);
 
-  // Ganti dengan konfigurasi Firebase Anda dari konsol Firebase
-  const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
-  };
-
   const registerForPush = async () => {
-    // Perbaikan: Gunakan firebase.apps.length untuk memastikan inisialisasi hanya sekali
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
-    const messaging = firebase.messaging();
+    // Perbaikan: Gunakan getApps().length untuk memeriksa inisialisasi
+    const firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    const messaging = getMessaging(firebaseApp);
+
     try {
-      await messaging.requestPermission();
-      const token = await messaging.getToken();
+      const isMessagingSupported = await isSupported();
+      if (!isMessagingSupported) {
+        console.log('Firebase Messaging is not supported in this browser.');
+        return;
+      }
+
+      await Notification.requestPermission();
+      const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+      const token = await getToken(messaging, { vapidKey });
       console.log('FCM Token:', token);
+
       await fetch('/api/register-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -263,7 +261,7 @@ export default function App() {
       };
       setMessages([greetingMessage]);
       setIsFirstLoad(false);
-      registerForPush(); // Daftarkan notifikasi saat aplikasi pertama kali dimuat
+      registerForPush();
     }
   }, [isFirstLoad]);
 
@@ -271,8 +269,8 @@ export default function App() {
   const fetchAllData = async () => {
     try {
       const [schedulesRes, financesRes] = await Promise.all([
-        fetch('http://localhost:5000/api/schedules'),
-        fetch('http://localhost:5000/api/finances'),
+        fetch('https://rimuru-backend.up.railway.app/api/schedules'),
+        fetch('https://rimuru-backend.up.railway.app/api/finances'),
       ]);
       if (!schedulesRes.ok || !financesRes.ok) throw new Error('Failed to fetch from server.');
       const schedulesData = await schedulesRes.json();

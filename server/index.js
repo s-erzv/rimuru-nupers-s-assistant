@@ -3,10 +3,10 @@ const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const admin = require('firebase-admin');
 const { google } = require('googleapis');
-// const fs = require('fs'); // Tidak lagi dibutuhkan untuk membaca file kredensial
-// const path = require('path'); // Tidak lagi dibutuhkan untuk membaca file kredensial
+const path = require('path');
 const { autoSchedule } = require('./autoScheduler');
-require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+const fs = require('fs');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -32,21 +32,21 @@ function must(name) {
 
 // --- PERUBAHAN: Gunakan FIREBASE_SERVICE_ACCOUNT_JSON untuk Firebase Admin SDK ---
 try {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  const serviceAccount = JSON.parse(must('FIREBASE_SERVICE_ACCOUNT_JSON'));
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
   });
   console.log('Firebase Admin SDK initialized from environment variable.');
 } catch (e) {
   console.error("Firebase Admin initialization failed. Check FIREBASE_SERVICE_ACCOUNT_JSON environment variable.");
-  process.exit(1); 
+  process.exit(1);
 }
 const db = admin.firestore();
 
 // --- PERUBAHAN: Gunakan GOOGLE_CALENDAR_SHEETS_SERVICE_ACCOUNT_JSON untuk Sheets & Calendar ---
 let sheetsAndCalendarServiceAccount;
 try {
-  sheetsAndCalendarServiceAccount = JSON.parse(process.env.GOOGLE_CALENDAR_SHEETS_SERVICE_ACCOUNT_JSON);
+  sheetsAndCalendarServiceAccount = JSON.parse(must('GOOGLE_CALENDAR_SHEETS_SERVICE_ACCOUNT_JSON'));
 } catch (e) {
   console.error("Failed to parse GOOGLE_CALENDAR_SHEETS_SERVICE_ACCOUNT_JSON:", e.message);
   process.exit(1);
@@ -64,7 +64,7 @@ const calendarAuth = new google.auth.GoogleAuth({
 });
 const calendar = google.calendar({ version: 'v3', auth: calendarAuth });
 
-/* ===================== TASKS OAUTH (tetap) ===================== */
+/* ===================== TASKS OAUTH ===================== */
 const oauth2ClientTasks = new google.auth.OAuth2(
   must('GOOGLE_OAUTH_TASKS_CLIENT_ID'),
   must('GOOGLE_OAUTH_TASKS_CLIENT_SECRET'),
@@ -82,7 +82,7 @@ if (process.env.GOOGLE_OAUTH_TASKS_TOKEN_JSON) {
   }
 }
 
-// --- PERUBAHAN: Hapus penulisan file ke disk di lingkungan produksi ---
+// --- PERUBAHAN: Hapus penulisan file ke disk, tampilkan token di response ---
 app.get('/auth/google', (req, res) => {
   const url = oauth2ClientTasks.generateAuthUrl({
     access_type: 'offline',
@@ -96,7 +96,6 @@ app.get('/oauth2callback', async (req, res) => {
   try {
     const { tokens } = await oauth2ClientTasks.getToken(req.query.code);
     oauth2ClientTasks.setCredentials(tokens);
-    // fs.writeFileSync(TOKEN_TASKS_PATH, JSON.stringify(tokens, null, 2)); // Hapus baris ini
     res.send(`Google Tasks terhubung! Salin token ini dan simpan di variabel lingkungan GOOGLE_OAUTH_TASKS_TOKEN_JSON:<br/><br/>
               <pre>${JSON.stringify(tokens, null, 2)}</pre><br/><br/>Kamu bisa tutup tab ini.`);
   } catch (e) {
@@ -116,7 +115,7 @@ function getTasksClientOrThrow() {
   return google.tasks({ version: 'v1', auth: oauth2ClientTasks });
 }
 
-/* ===================== GMAIL OAUTH (tetap) ===================== */
+/* ===================== GMAIL OAUTH ===================== */
 const oauth2ClientGmail = new google.auth.OAuth2(
   must('GOOGLE_OAUTH_GMAIL_CLIENT_ID'),
   must('GOOGLE_OAUTH_GMAIL_CLIENT_SECRET'),
@@ -134,7 +133,7 @@ if (process.env.GOOGLE_OAUTH_GMAIL_TOKEN_JSON) {
   }
 }
 
-// --- PERUBAHAN: Hapus penulisan file ke disk di lingkungan produksi ---
+// --- PERUBAHAN: Hapus penulisan file ke disk, tampilkan token di response ---
 app.get('/auth/gmail', (req, res) => {
   const url = oauth2ClientGmail.generateAuthUrl({
     access_type: 'offline',
@@ -148,7 +147,6 @@ app.get('/oauth2callback_gmail', async (req, res) => {
   try {
     const { tokens } = await oauth2ClientGmail.getToken(req.query.code);
     oauth2ClientGmail.setCredentials(tokens);
-    // fs.writeFileSync(TOKEN_GMAIL_PATH, JSON.stringify(tokens, null, 2)); // Hapus baris ini
     res.send(`Gmail terhubung! Salin token ini dan simpan di variabel lingkungan GOOGLE_OAUTH_GMAIL_TOKEN_JSON:<br/><br/>
               <pre>${JSON.stringify(tokens, null, 2)}</pre><br/><br/>Kamu bisa tutup tab ini.`);
   } catch (e) {
@@ -174,7 +172,7 @@ const SPREADSHEET_ID = '144JyNngIWCm97EAgUEmNphCExkxSaxd6KDSsIVPytIY';
 const WEEKLY_BUDGET = 500000;
 const DAILY_FOOD_BUDGET = 50000;
 
-const genAI = new GoogleGenerativeAI(must('GEMINI_API_KEY')); // Menambahkan must() untuk API Key Gemini
+const genAI = new GoogleGenerativeAI(must('GEMINI_API_KEY'));
 const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 // --- MENGIMPOR ATURAN AI DARI FILE TERPISAH ---
@@ -200,11 +198,11 @@ function formatRFC3339Local(date, timeZone = 'Asia/Jakarta', offset = '+07:00') 
   return `${ymd}T${hm}:00${offset}`;
 }
 
-// ----------------- PARSER WAKTU -----------------
+// ----------------- PERUBAHAN: PARSER WAKTU YANG LEBIH AKURAT -----------------
 function parseStructuredSchedule(day, timeStartStr, timeEndStr) {
   console.log('Memulai parsing waktu dari data terstruktur:', { day, timeStartStr, timeEndStr });
   const dayMap = { 'minggu':0,'senin':1,'selasa':2,'rabu':3,'kamis':4,'jumat':5,'sabtu':6 };
-  const monthMap = { 'januari':0,'februari':1,'maret':2,'april':3,'mei':5,'juni':5,'juli':6,'agustus':7,'september':8,'oktober':9,'november':10,'desember':11 };
+  const monthMap = { 'januari':0,'februari':1,'maret':2,'april':3,'mei':4,'juni':5,'juli':6,'agustus':7,'september':8,'oktober':9,'november':10,'desember':11 };
 
   let startTime=null, endTime=null, recurrence=null;
   const today=new Date(); let targetDate=new Date();
@@ -217,25 +215,34 @@ function parseStructuredSchedule(day, timeStartStr, timeEndStr) {
   if (withYear) { const [,d,m,y]=withYear; targetDate=new Date(y,monthMap[m.toLowerCase()],d); }
   else if (yearly) { const [,d,m]=yearly; targetDate=new Date(today.getFullYear(),monthMap[m.toLowerCase()],d); recurrence='RRULE:FREQ=YEARLY'; }
   else if (withoutYear) { const [,d,m]=withoutYear; targetDate=new Date(today.getFullYear(),monthMap[m.toLowerCase()],d); }
+  else if (dayLower==='hari ini' || dayLower === 'today') targetDate = new Date();
+  else if (dayLower==='besok'||dayLower==='tomorrow') targetDate.setDate(today.getDate()+1);
+  else if (dayLower==='lusa') targetDate.setDate(today.getDate()+2);
   else if (dayMap[dayLower]!==undefined) {
     const diff=(dayMap[dayLower]-today.getDay()+7)%7;
     targetDate.setDate(today.getDate()+diff);
     recurrence=`RRULE:FREQ=WEEKLY;BYDAY=${['SU','MO','TU','WE','TH','FR','SA'][dayMap[dayLower]]}`;
-  } else if (dayLower==='besok'||dayLower==='tomorrow') targetDate.setDate(today.getDate()+1);
-  else if (dayLower==='lusa') targetDate.setDate(today.getDate()+2);
+  }
 
-  if (timeStartStr && timeEndStr) {
-    const [sh,sm]=timeStartStr.split(':').map(n=>parseInt(n,10));
-    const [eh,em]=timeEndStr.split(':').map(n=>parseInt(n,10));
-    startTime=new Date(targetDate); startTime.setHours(sh, sm||0,0,0);
-    endTime=new Date(targetDate);   endTime.setHours(eh, em||0,0,0);
-  } else if (timeStartStr) {
-    const [sh,sm]=timeStartStr.split(':').map(n=>parseInt(n,10));
-    startTime=new Date(targetDate); startTime.setHours(sh, sm||0,0,0);
-    endTime=new Date(targetDate);   endTime.setHours(sh+1, sm||0,0,0);
+  // Handle time parsing and setting more accurately
+  if (timeStartStr) {
+    const [sh, sm] = timeStartStr.split(':').map(n => parseInt(n, 10));
+    const [eh, em] = (timeEndStr || '').split(':').map(n => parseInt(n, 10));
+    
+    startTime = new Date(targetDate);
+    startTime.setHours(sh, sm || 0, 0, 0);
+
+    if (timeEndStr) {
+        endTime = new Date(targetDate);
+        endTime.setHours(eh, em || 0, 0, 0);
+    } else {
+        endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // Default to 1 hour if no end time
+    }
   } else {
-    startTime=new Date(targetDate); startTime.setHours(0,0,0,0);
-    endTime=new Date(targetDate);   endTime.setHours(23,59,0,0);
+    startTime = new Date(targetDate);
+    startTime.setHours(0, 0, 0, 0);
+    endTime = new Date(targetDate);
+    endTime.setHours(23, 59, 0, 0);
   }
   return { startTime, endTime, recurrence, hadExplicitTime: !!(timeStartStr||timeEndStr) };
 }
@@ -293,7 +300,7 @@ app.post('/api/chat', async (req, res) => {
     console.log('Pesan masuk:', message);
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
-    const result = await new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+    const result = await new GoogleGenerativeAI(must('GEMINI_API_KEY'))
       .getGenerativeModel({ model: 'gemini-1.5-flash' })
       .generateContent(`${GEN_RULES}\nUser: ${message}`);
     const responseText = result.response.text();
