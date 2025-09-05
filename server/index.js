@@ -360,7 +360,7 @@ const routeHandlers = {
       recurrence: recurrence ? [recurrence] : undefined,
     };
     await calendar.events.insert({ calendarId: CALENDAR_ID, resource: calendarEvent });
-    res.json({ text: `Oke noted! Jadwal "**${event}**" udah aku tambahin.` });
+    res.json({ text: `Okeng, noted! Jadwal "**${event}**" udah aku tambahin nih.` });
   },
 
   'task': async (req, res, data) => {
@@ -422,7 +422,7 @@ const routeHandlers = {
       resp += `\nPPPPPP WOIIII lu udah melebihi limit harian Rp${DAILY_FOOD_BUDGET.toLocaleString('id-ID')}.`;
       await sendPushNotification('Peringatan Budget Harian', `Pengeluaran harianmu melebihi budget. Sisa budget hari ini: Rp${(DAILY_FOOD_BUDGET - Math.abs(dailyTotal)).toLocaleString('id-ID')}`);
     }
-    if (Math.abs(weeklyTotal) > WEEKLY_BUDGET) {
+    if (Math.abs(weeklyTotal) > WEEKLY_BUDgesT) {
       resp += `\nWOIIIIII lu udah melebihi limit mingguan Rp${WEEKLY_BUDGET.toLocaleString('id-ID')}.`;
       await sendPushNotification('Peringatan Budget Mingguan', `Pengeluaran mingguanmu melebihi budget. Sisa budget minggu ini: Rp${(WEEKLY_BUDGET - Math.abs(weeklyTotal)).toLocaleString('id-ID')}`);
     }
@@ -438,7 +438,7 @@ const routeHandlers = {
       spreadsheetId: SPREADSHEET_ID, range: 'Sheet1!A:D', valueInputOption: 'USER_ENTERED',
       resource: { values: [[new Date().toLocaleString('id-ID'), item, incomeAmount, 'Pemasukan']] }
     });
-    res.json({ text: `Cihuyy! Pemasukan dari **${item}** sebesar Rp${incomeAmount.toLocaleString('id-ID')} udah masuk.` });
+    res.json({ text: `Cihuyy, cuan! Pemasukan dari **${item}** sebesar Rp${incomeAmount.toLocaleString('id-ID')} udah masuk.` });
   },
 
   'auto_schedule': async (req, res, data) => {
@@ -628,12 +628,13 @@ const routeHandlers = {
   
       const items = snapshot.docs.map(doc => ({
         event: doc.data().content,
-        date: doc.data().date?.toDate()?.toLocaleString('id-ID'),
+        // Kirim tanggal dalam format ISO 8601 untuk konsistensi
+        date: doc.data().date?.toDate()?.toISOString(), 
       }));
   
       if (items.length === 0) {
         const dayName = period === 'today' ? 'hari ini' : period === 'tomorrow' ? 'besok' : 'periode ini';
-        return res.json({ text: `Wah, jadwal ${dayName} kamu kosong nih. Nonton anime dulu yuk.` });
+        return res.json({ text: `Wah, jadwal ${dayName} kamu kosong nih. Waktunya santai-santai!` });
       }
   
       const summaryPrompt = `Ringkas jadwal berikut menjadi poin-poin yang mudah dibaca. Sebutkan hari dan tanggalnya. Gunakan Bahasa Indonesia gaul yang santai. \n\nData Jadwal:\n${JSON.stringify(items, null, 2)}`;
@@ -874,5 +875,4 @@ app.get('/api/tasks', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`Server is running ea`);
-  //checkTaskDeadlinesAndNotify(); 
 });
