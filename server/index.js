@@ -12,7 +12,7 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 const corsOptions = {
-  origin: 'http://localhost:5173',
+  origin: 'https://rimuru.up.railway.app/',
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -756,11 +756,4 @@ app.get('/api/finances', async (req, res) => {
   const snapshot = await db.collection('finances').orderBy('date', 'desc').get();
   const finances = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _seconds: doc.data().date?._seconds }));
   res.json(finances);
-});
-
-// ----------------- START SERVER -----------------
-app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
-  console.log(`Tasks OAuth (kalau belum):   http://localhost:${port}/auth/google`);
-  console.log(`Gmail OAuth (baru):           http://localhost:${port}/auth/gmail`);
 });
