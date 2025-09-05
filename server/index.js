@@ -12,13 +12,7 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 const corsOptions = {
-  origin: [
-    'https://rimuru-na.vercel.app/',
-    'https://rimuru-na-nupers-projects-f2dc46d5.vercel.app',
-    'https://rimuru.up.railway.app',
-    'https://rimuru-backend.up.railway.app',
-    'http://localhost:5173'
-  ],
+  origin: '*',
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
   credentials: true
@@ -301,17 +295,47 @@ setInterval(async () => {
 // ===================== AUTHENTIKASI =====================
 const APP_SECRET_CODE = must('APP_SECRET_CODE');
 
-// Endpoint untuk login
-app.post('/api/login', (req, res) => {
-  const { code } = req.body;
-  if (code === APP_SECRET_CODE) {
-    // Generate token sederhana (misalnya, timestamp)
-    const token = new Date().getTime().toString();
-    return res.status(200).json({ success: true, token });
-  } else {
-    return res.status(401).json({ success: false, error: 'Kode rahasia salah.' });
+// ==== login helpers (taruh dekat kode route lain) ====
+function isValidCode(code) {
+  return typeof code === 'string' && code === process.env.APP_SECRET_CODE;
+}
+
+function issueToken() {
+  return Date.now().toString(); // sama seperti sebelumnya: timestamp ms
+}
+
+function loginResponse(res, code) {
+  if (!isValidCode(code)) {
+    return res.status(401).json({ success: false, message: 'Kode rahasia salah.' });
   }
+  const token = issueToken();
+  return res.json({ success: true, token });
+}
+
+// ==== POST /api/login (tetap ada) ====
+app.post('/api/login', (req, res) => {
+  const { code } = req.body || {};
+  return loginResponse(res, code);
 });
+
+// ==== NEW: GET /api/login ====
+// opsi kirim kode via query (?code=) atau header x-code
+app.get('/api/login', (req, res) => {
+  const code = req.query.code || req.headers['x-code'];
+  // kalau nggak kasih code, balikin petunjuk biar eksplisit
+  if (!code) {
+    return res.status(400).json({
+      success: false,
+      message: 'Tambahkan ?code=<APP_SECRET_CODE> atau header x-code.',
+      examples: {
+        curl_query: 'curl "https://<BASE_URL>/api/login?code=<APP_SECRET_CODE>"',
+        curl_header: 'curl -H "x-code: <APP_SECRET_CODE>" https://<BASE_URL>/api/login'
+      }
+    });
+  }
+  return loginResponse(res, code);
+});
+
 
 // Middleware untuk verifikasi token
 function authenticateToken(req, res, next) {
