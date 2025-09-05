@@ -13,8 +13,8 @@ const port = process.env.PORT || 5000;
 
 const corsOptions = {
   origin: [
-    'https://rimuru-xi.vercel.app/',
-    'https://rimuru-nupers-projects-f2dc46d5.vercel.app/',
+    'https://rimuru-na.vercel.app/',
+    'https://rimuru-na-nupers-projects-f2dc46d5.vercel.app',
     'https://rimuru.up.railway.app',
     'https://rimuru-backend.up.railway.app',
     'http://localhost:5173'
