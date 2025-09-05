@@ -4,8 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "gen:sw-config": "node -r dotenv/config scripts/gen-sw-config.js",
+    "dev": "npm run gen:sw-config && vite",
+    "build": "npm run gen:sw-config && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
