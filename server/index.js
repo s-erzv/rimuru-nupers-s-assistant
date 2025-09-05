@@ -202,42 +202,46 @@ function formatRFC3339Local(date, timeZone = 'Asia/Jakarta', offset = '+07:00') 
 function parseStructuredSchedule(day, timeStartStr, timeEndStr) {
   console.log('Memulai parsing waktu dari data terstruktur:', { day, timeStartStr, timeEndStr });
   const dayMap = { 'minggu':0,'senin':1,'selasa':2,'rabu':3,'kamis':4,'jumat':5,'sabtu':6 };
-  // Perbaikan bulan 'mei' dan 'juni'
   const monthMap = { 'januari':0,'februari':1,'maret':2,'april':3,'mei':4,'juni':5,'juli':6,'agustus':7,'september':8,'oktober':9,'november':10,'desember':11 };
 
-  let startTime=null, endTime=null, recurrence=null;
-  const today=new Date(); let targetDate=new Date();
-  const dayLower=(day||'').toLowerCase();
+  let recurrence = null;
+  let targetDate = new Date();
+  const now = new Date();
+  const dayLower = (day || '').toLowerCase();
 
-  const withYear=day && day.match(/(\d{1,2})\s(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)\s(\d{4})/i);
-  const withoutYear=day && day.match(/(\d{1,2})\s(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)/i);
-  const yearly=day && day.match(/setiap\s.*(\d{1,2})\s(januari|...|desember)/i);
-
-  if (withYear) { const [,d,m,y]=withYear; targetDate=new Date(y,monthMap[m.toLowerCase()],d); }
-  else if (yearly) { const [,d,m]=yearly; targetDate=new Date(today.getFullYear(),monthMap[m.toLowerCase()],d); recurrence='RRULE:FREQ=YEARLY'; }
-  else if (withoutYear) { const [,d,m]=withoutYear; targetDate=new Date(today.getFullYear(),monthMap[m.toLowerCase()],d); }
-  else if (dayLower==='hari ini' || dayLower === 'today') targetDate = new Date();
-  else if (dayLower==='besok'||dayLower==='tomorrow') targetDate.setDate(today.getDate()+1);
-  else if (dayLower==='lusa') targetDate.setDate(today.getDate()+2);
-  else if (dayMap[dayLower]!==undefined) {
-    const diff=(dayMap[dayLower]-today.getDay()+7)%7;
-    targetDate.setDate(today.getDate()+diff);
-    recurrence=`RRULE:FREQ=WEEKLY;BYDAY=${['SU','MO','TU','WE','TH','FR','SA'][dayMap[dayLower]]}`;
+  // Determine the target date based on the day string
+  if (dayLower === 'hari ini' || dayLower === 'today') {
+    targetDate = new Date();
+  } else if (dayLower === 'besok' || dayLower === 'tomorrow') {
+    targetDate.setDate(now.getDate() + 1);
+  } else if (dayLower === 'lusa') {
+    targetDate.setDate(now.getDate() + 2);
+  } else if (dayMap[dayLower] !== undefined) {
+    const diff = (dayMap[dayLower] - now.getDay() + 7) % 7;
+    targetDate.setDate(now.getDate() + diff);
+    recurrence = `RRULE:FREQ=WEEKLY;BYDAY=${['SU','MO','TU','WE','TH','FR','SA'][dayMap[dayLower]]}`;
+  } else {
+    // Handle explicit date formats
+    const withYear = day && day.match(/(\d{1,2})\s(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)\s(\d{4})/i);
+    const withoutYear = day && day.match(/(\d{1,2})\s(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)/i);
+    if (withYear) {
+      const [, d, m, y] = withYear;
+      targetDate = new Date(y, monthMap[m.toLowerCase()], d);
+    } else if (withoutYear) {
+      const [, d, m] = withoutYear;
+      targetDate = new Date(now.getFullYear(), monthMap[m.toLowerCase()], d);
+    }
   }
 
-  // Handle time parsing and setting more accurately
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
-  const currentDay = now.getDate();
-
+  // Handle time parsing
   const [sh, sm] = (timeStartStr || '00:00').split(':').map(n => parseInt(n, 10));
   const [eh, em] = (timeEndStr || (timeStartStr ? `${sh + 1}:00` : '23:59')).split(':').map(n => parseInt(n, 10));
 
-  startTime = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), sh, sm || 0, 0, 0);
-  endTime = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), eh, em || 0, 0, 0);
-  
   const hadExplicitTime = !!(timeStartStr || timeEndStr);
+  
+  // Construct Date objects directly, which will be in the server's local time
+  const startTime = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), sh, sm || 0, 0, 0);
+  const endTime = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), eh, em || 0, 0, 0);
   
   return { startTime, endTime, recurrence, hadExplicitTime };
 }
