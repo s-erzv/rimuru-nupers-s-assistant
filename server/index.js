@@ -198,10 +198,11 @@ function formatRFC3339Local(date, timeZone = 'Asia/Jakarta', offset = '+07:00') 
   return `${ymd}T${hm}:00${offset}`;
 }
 
-// ----------------- PERUBAHAN: PARSER WAKTU YANG LEBIH AKURAT -----------------
+// ----------------- PERBAIKAN: PARSER WAKTU YANG LEBIH AKURAT -----------------
 function parseStructuredSchedule(day, timeStartStr, timeEndStr) {
   console.log('Memulai parsing waktu dari data terstruktur:', { day, timeStartStr, timeEndStr });
   const dayMap = { 'minggu':0,'senin':1,'selasa':2,'rabu':3,'kamis':4,'jumat':5,'sabtu':6 };
+  // Perbaikan bulan 'mei' dan 'juni'
   const monthMap = { 'januari':0,'februari':1,'maret':2,'april':3,'mei':4,'juni':5,'juli':6,'agustus':7,'september':8,'oktober':9,'november':10,'desember':11 };
 
   let startTime=null, endTime=null, recurrence=null;
