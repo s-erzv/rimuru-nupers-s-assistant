@@ -49,6 +49,40 @@ User: jadwalin dong terserah kapan aja, aku mau main dan nonton bioskop sama tem
 AI: {"type":"auto_schedule","activity":"main dan nonton bioskop sama teman","duration_minutes":180}
 User: minggu ini tolong atur waktu buat olahraga
 AI: {"type":"auto_schedule","activity":"olahraga","duration_minutes":60}
+User: jadwal aku besok apa aja?
+AI: {"type":"schedule_query","period":"tomorrow"}
+User: jadwal hari ini
+AI: {"type":"schedule_query","period":"today"}
+User: jadwal minggu ini
+AI: {"type":"schedule_query","period":"this_week"}
+User: jadwal bulan ini
+AI: {"type":"schedule_query","period":"monthly"}
+User: lihat jadwal tanggal 15
+AI: {"type":"schedule_query","period":"daily","date":"15"}
+User: apa aja jadwal gue minggu depan?
+AI: {"type":"schedule_query","period":"next_week"}
+User: jadwal kapan aja sih?
+AI: {"type":"schedule_query","period":"weekly"}
+User: ada meeting apa aja hari senin?
+AI: {"type":"schedule_query","period":"daily","date":"senin"}
+User: tanggal 25 desember ada acara apa?
+AI: {"type":"schedule_query","period":"daily","date":"25 desember"}
+User: besok kosong ga?
+AI: {"type":"schedule_query","period":"tomorrow"}
+User: jadwal aku besok apa aja?
+AI: {"type":"schedule_query","period":"tomorrow"}
+User: jadwalku lusa apa aja?
+AI: {"type":"schedule_query","period":"day_after_tomorrow"}
+User: jadwal hari ini
+AI: {"type":"schedule_query","period":"today"}
+User: jadwal minggu ini
+AI: {"type":"schedule_query","period":"this_week"}
+User: jadwal bulan ini
+AI: {"type":"schedule_query","period":"monthly"}
+User: lihat jadwal tanggal 15
+AI: {"type":"schedule_query","period":"daily","date":"15"}
+User: apa aja jadwal gue minggu depan?
+AI: {"type":"schedule_query","period":"next_week"}
 
 // TASKS
 User: apa aja to-do list gue?
@@ -59,6 +93,10 @@ User: tugas besok: hubungi klien
 AI: {"type":"task","event":"hubungi klien","day":"besok"}
 User: ada project managemen app dari ka amam, deadlinenya tanggal 13
 AI: {"type":"task","event":"project managemen app dari ka amam","day":"tanggal 13"}
+User: jadwal dan to-do list aku besok apa aja?
+AI: {"type":"summary","topic":["schedules","tasks"],"period":"tomorrow"}
+User: ringkas semua yang harus kulakuin hari ini
+AI: {"type":"summary","topic":["schedules","tasks"],"period":"today"}
 
 // EDITING & DELETING
 User: eh besok gajadi meeting apus aja jadwalnya
@@ -79,5 +117,25 @@ User: halo
 AI: {"type":"general","query":"halo"}
 User: kasih tips nabung dong
 AI: {"type":"general","query":"tips nabung"}
+User: aku lagi capek banget hari ini
+AI: {"type":"general","query":"berikan kata-kata motivasi untuk orang yang lelah hari ini"}
+User: ada rekomendasi lagu/musik yang enak buat coding ga?
+AI: {"type":"general","query":"rekomendasi lagu/musik untuk coding"}
+
+// Kebiasaan
+User: catat aku udah olahraga hari ini
+AI: {"type":"habit_track","habit":"olahraga","status":"done"}
+User: aku udah baca buku hari ini
+AI: {"type":"habit_track","habit":"baca buku","status":"done"}
+User: minggu ini aku udah olahraga berapa kali?
+AI: {"type":"habit_query","habit":"olahraga","period":"weekly"}
+
+// Goal setting and tracking
+User: target keuangan bulan ini: nabung 10 juta
+AI: {"type":"set_goal","topic":"finances","goal_name":"nabung","amount":10000000,"period":"monthly"}
+User: ingetin aku buat minum vitamin setiap hari
+AI: {"type":"set_goal","topic":"health","goal_name":"minum vitamin","frequency":"daily"}
+User: gimana perkembangan target nabungku bulan ini?
+AI: {"type":"goal_progress","topic":"finances","goal_name":"nabung","period":"monthly"}
 `;
 module.exports = GEN_RULES;
