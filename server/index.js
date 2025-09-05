@@ -292,6 +292,37 @@ setInterval(async () => {
     }
 }, 60000); // Cek setiap menit
 
+// ===================== AUTHENTIKASI =====================
+const APP_SECRET_CODE = must('APP_SECRET_CODE');
+
+// Endpoint untuk login
+app.post('/api/login', (req, res) => {
+  const { code } = req.body;
+  if (code === APP_SECRET_CODE) {
+    // Generate token sederhana (misalnya, timestamp)
+    const token = new Date().getTime().toString();
+    return res.status(200).json({ success: true, token });
+  } else {
+    return res.status(401).json({ success: false, error: 'Kode rahasia salah.' });
+  }
+});
+
+// Middleware untuk verifikasi token
+function authenticateToken(req, res, next) {
+  const token = req.headers['authorization'];
+  // Cek apakah token ada, valid, dan masih baru (misalnya dalam 24 jam)
+  if (!token || (new Date().getTime() - parseInt(token) > 24 * 60 * 60 * 1000)) {
+    return res.status(401).json({ error: 'Akses ditolak. Token tidak valid atau kedaluwarsa.' });
+  }
+  next();
+}
+
+// Gunakan middleware ini untuk endpoint yang ingin dilindungi
+app.use('/api/chat', authenticateToken);
+app.use('/api/schedules', authenticateToken);
+app.use('/api/finances', authenticateToken);
+app.use('/api/register-token', authenticateToken);
+
 // ----------------- ROUTES: Chat utama -----------------
 app.post('/api/chat', async (req, res) => {
   try {

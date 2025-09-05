@@ -214,9 +214,9 @@ function FinanceList({ finances }) {
 }
 
 // ————————————————————————————————————————————————
-// App — full width, responsive, personalized
+// Main App Component
 // ————————————————————————————————————————————————
-export default function App() {
+function MainApp() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [schedules, setSchedules] = useState([]);
@@ -225,24 +225,35 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isFirstLoad, setIsFirstLoad] = useState(true);
 
+  const fetchWithAuth = async (url, options = {}) => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+        setErrorMessage('Sesi habis, silakan login ulang.');
+        throw new Error('No auth token found');
+    }
+    const headers = { ...options.headers, 'Authorization': token };
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401) {
+        localStorage.removeItem('auth_token');
+        window.location.reload();
+    }
+    return response;
+  }
+  
   const registerForPush = async () => {
-    // Perbaikan: Gunakan getApps().length untuk memeriksa inisialisasi
     const firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
     const messaging = getMessaging(firebaseApp);
-
     try {
       const isMessagingSupported = await isSupported();
       if (!isMessagingSupported) {
         console.log('Firebase Messaging is not supported in this browser.');
         return;
       }
-
       await Notification.requestPermission();
       const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
       const token = await getToken(messaging, { vapidKey });
       console.log('FCM Token:', token);
-
-      await fetch('/api/register-token', {
+      await fetchWithAuth('/api/register-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
@@ -270,8 +281,8 @@ export default function App() {
   const fetchAllData = async () => {
     try {
       const [schedulesRes, financesRes] = await Promise.all([
-        fetch('https://rimuru-backend.up.railway.app/api/schedules'),
-        fetch('https://rimuru-backend.up.railway.app/api/finances'),
+        fetchWithAuth('https://rimuru-backend.up.railway.app/api/schedules'),
+        fetchWithAuth('https://rimuru-backend.up.railway.app/api/finances'),
       ]);
       if (!schedulesRes.ok || !financesRes.ok) throw new Error('Failed to fetch from server.');
       const schedulesData = await schedulesRes.json();
@@ -298,7 +309,7 @@ export default function App() {
     setInput('');
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetchWithAuth('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: newMessage.text }),
@@ -347,6 +358,18 @@ export default function App() {
           <div>
             <h1 className="text-base font-semibold">Nupers's Assistant</h1>
             <p className="text-xs text-slate-500">Your personal hub</p>
+          </div>
+          {/* Logout button */}
+          <div className="ml-auto">
+            <button
+              onClick={() => {
+                localStorage.removeItem('auth_token');
+                window.location.reload();
+              }}
+              className="text-sm text-slate-500 hover:text-slate-900 transition-colors"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </div>
@@ -493,4 +516,84 @@ export default function App() {
       </div>
     </div>
   );
+}
+
+// ————————————————————————————————————————————————
+// Login Component
+// ————————————————————————————————————————————————
+function LoginPage({ onLogin }) {
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem('auth_token', data.token);
+        onLogin();
+      } else {
+        setError('Kode rahasia salah. Coba lagi.');
+      }
+    } catch (err) {
+      setError('Terjadi kesalahan saat mencoba login.');
+      console.error(err);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-slate-50 text-slate-900">
+      <Card className="p-8 w-full max-w-sm">
+        <h1 className="text-2xl font-bold mb-2">Halo! 👋</h1>
+        <p className="text-sm text-slate-600 mb-6">Masukkan kode rahasia kamu untuk melanjutkan.</p>
+        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+          <input
+            type="password"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Kode rahasia"
+            className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+          />
+          {error && <p className="text-sm text-rose-500">{error}</p>}
+          <button
+            type="submit"
+            className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black transition-colors"
+          >
+            Masuk
+          </button>
+        </form>
+      </Card>
+    </div>
+  );
+}
+
+// ————————————————————————————————————————————————
+// App
+// ————————————————————————————————————————————————
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      // Validasi sederhana: cek apakah token tidak kadaluarsa (misalnya 24 jam)
+      if (new Date().getTime() - parseInt(token) < 24 * 60 * 60 * 1000) {
+        setIsLoggedIn(true);
+      } else {
+        localStorage.removeItem('auth_token');
+      }
+    }
+  }, []);
+
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={() => setIsLoggedIn(true)} />;
+  }
+
+  return <MainApp />;
 }
