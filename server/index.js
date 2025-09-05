@@ -192,27 +192,24 @@ function formatLocalHM(date, timeZone = 'Asia/Jakarta') {
   const m = parts.find(p => p.type === 'minute').value;
   return `${h}:${m}`;
 }
-
-// Fungsi yang telah diperbaiki
 function formatRFC3339Local(date, timeZone = 'Asia/Jakarta', offset = '+07:00') {
   const ymd = formatLocalDateYMD(date, timeZone);
   const hm = formatLocalHM(date, timeZone);
   return `${ymd}T${hm}:00${offset}`;
 }
 
-
 // ----------------- PERBAIKAN: PARSER WAKTU YANG LEBIH AKURAT -----------------
 function parseStructuredSchedule(day, timeStartStr, timeEndStr) {
   console.log('Memulai parsing waktu dari data terstruktur:', { day, timeStartStr, timeEndStr });
   const dayMap = { 'minggu':0,'senin':1,'selasa':2,'rabu':3,'kamis':4,'jumat':5,'sabtu':6 };
-  const monthMap = { 'januari':0,'februari':1,'maret':2,'april':3,'mei':4,'juni':5,'juli':6,'agustus':7,'september':8,'oktober':9,'november':10,'desember':11 };
+  const monthMap = { 'januari':0,'februari':1,'maret':2,'april':3,'mei':4,'juni':5,'juli':6,'agustus':8,'september':8,'oktober':9,'november':10,'desember':11 };
 
   let recurrence = null;
   let targetDate = new Date();
   const now = new Date();
   const dayLower = (day || '').toLowerCase();
-
-  // Determine the target date based on the day string
+  
+  // Logic to determine the target date...
   if (dayLower === 'hari ini' || dayLower === 'today') {
     targetDate = new Date();
   } else if (dayLower === 'besok' || dayLower === 'tomorrow') {
@@ -224,7 +221,6 @@ function parseStructuredSchedule(day, timeStartStr, timeEndStr) {
     targetDate.setDate(now.getDate() + diff);
     recurrence = `RRULE:FREQ=WEEKLY;BYDAY=${['SU','MO','TU','WE','TH','FR','SA'][dayMap[dayLower]]}`;
   } else {
-    // Handle explicit date formats
     const withYear = day && day.match(/(\d{1,2})\s(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)\s(\d{4})/i);
     const withoutYear = day && day.match(/(\d{1,2})\s(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)/i);
     if (withYear) {
@@ -236,15 +232,15 @@ function parseStructuredSchedule(day, timeStartStr, timeEndStr) {
     }
   }
 
-  // Handle time parsing
   const [sh, sm] = (timeStartStr || '00:00').split(':').map(n => parseInt(n, 10));
   const [eh, em] = (timeEndStr || (timeStartStr ? `${sh + 1}:00` : '23:59')).split(':').map(n => parseInt(n, 10));
-
   const hadExplicitTime = !!(timeStartStr || timeEndStr);
   
-  // Construct Date objects directly, which will be in the server's local time
-  const startTime = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), sh, sm || 0, 0, 0);
-  const endTime = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), eh, em || 0, 0, 0);
+  // Perbaikan utama di sini: Buat string ISO 8601 dengan offset +07:00
+  const dateString = `${targetDate.getFullYear()}-${(targetDate.getMonth()+1).toString().padStart(2, '0')}-${targetDate.getDate().toString().padStart(2, '0')}`;
+  
+  const startTime = new Date(`${dateString}T${sh.toString().padStart(2, '0')}:${(sm || 0).toString().padStart(2, '0')}:00+07:00`);
+  const endTime = new Date(`${dateString}T${eh.toString().padStart(2, '0')}:${(em || 0).toString().padStart(2, '0')}:00+07:00`);
   
   return { startTime, endTime, recurrence, hadExplicitTime };
 }

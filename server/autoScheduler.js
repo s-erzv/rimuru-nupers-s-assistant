@@ -11,13 +11,20 @@ const DAY_END_H   = 22;  // 22:00 local
 
 /** Convert Date to RFC3339 with local timezone offset */
 function toRFC3339Local(d) {
-  const pad = (n)=>String(n).padStart(2,'0');
-  const yyyy=d.getFullYear(), mm=pad(d.getMonth()+1), dd=pad(d.getDate());
-  const hh=pad(d.getHours()), mi=pad(d.getMinutes()), ss=pad(d.getSeconds());
-  const off = -d.getTimezoneOffset();
-  const sign = off >= 0 ? '+' : '-';
-  const oh = pad(Math.floor(Math.abs(off)/60));
-  const om = pad(Math.abs(off)%60);
+  const pad = (n) => String(n).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const mm = pad(d.getMonth() + 1);
+  const dd = pad(d.getDate());
+  const hh = pad(d.getHours());
+  const mi = pad(d.getMinutes());
+  const ss = pad(d.getSeconds());
+  
+  // Hitung offset zona waktu +07:00
+  const offsetInMinutes = -d.getTimezoneOffset();
+  const sign = offsetInMinutes >= 0 ? '+' : '-';
+  const oh = pad(Math.floor(Math.abs(offsetInMinutes) / 60));
+  const om = pad(Math.abs(offsetInMinutes) % 60);
+
   return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}${sign}${oh}:${om}`;
 }
 
@@ -77,9 +84,9 @@ function scoreSlot(slotStart, durationMin, deadlinesCount) {
 
 /**
  * Build busy intervals from:
- *  - Google Calendar events (event.start.dateTime OR all-day)
- *  - Firestore 'schedules' (assume 60m duration if end unknown)
- *  - Google Tasks deadlines (1h busy block ending at 'due', or all-day if only date)
+ * - Google Calendar events (event.start.dateTime OR all-day)
+ * - Firestore 'schedules' (assume 60m duration if end unknown)
+ * - Google Tasks deadlines (1h busy block ending at 'due', or all-day if only date)
  */
 async function collectBusyIntervals({ calendar, CALENDAR_ID, db, admin, tasksClient, windowStart, windowEnd }) {
   const busy = [];
