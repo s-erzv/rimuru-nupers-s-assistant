@@ -220,11 +220,12 @@ function SettingsPage() {
   const [healthStatus, setHealthStatus] = useState('Checking...');
   const [tone, setTone] = useState('default');
 
+  // Gunakan URL lengkap
   const fetchHealthz = async () => {
     try {
       setHealthStatus('Checking...');
       setTone('default');
-      const res = await fetchWithAuth('/api/healthz');
+      const res = await fetchWithAuth('https://rimuru-backend.up.railway.app/api/healthz');
       if (res.ok) {
         setHealthStatus('OK');
         setTone('positive');
@@ -278,7 +279,7 @@ function MainApp() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isFirstLoad, setIsFirstLoad] = useState(true);
 
-  // Use base URL for production and relative path for dev proxy
+  // Gunakan URL lengkap untuk produksi dan path relatif untuk dev proxy
   const API_BASE_URL = 'https://rimuru-backend.up.railway.app';
   
   const fetchWithAuth = async (url, options = {}) => {
@@ -593,11 +594,13 @@ function LoginPage({ onLogin }) {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
 
+  const API_BASE_URL = 'https://rimuru-backend.up.railway.app';
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     try {
-      const res = await fetch('/api/login', {
+      const res = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code }),
