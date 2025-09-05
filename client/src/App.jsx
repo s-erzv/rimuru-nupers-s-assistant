@@ -270,6 +270,18 @@ function MainApp() {
   };
 
   useEffect(() => {
+    // START: Service Worker PWA Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js').then(registration => {
+          console.log('Service Worker berhasil didaftarkan dengan ruang lingkup:', registration.scope);
+        }).catch(error => {
+          console.error('Pendaftaran Service Worker gagal:', error);
+        });
+      });
+    }
+    // END: Service Worker PWA Registration
+
     if (isFirstLoad) {
       const greetingMessage = {
         sender: 'gemini',

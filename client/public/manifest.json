@@ -1,0 +1,19 @@
+{
+  "name": "Nupers's Assistant",
+  "short_name": "Rimuru",
+  "description": "Your personal AI assistant for managing schedules, tasks, finances, and emails.",
+  "start_url": "/",
+  "display": "standalone",
+  "icons": [
+    {
+      "src": "/rimuru.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/splashScreen.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
