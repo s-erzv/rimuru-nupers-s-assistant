@@ -192,11 +192,14 @@ function formatLocalHM(date, timeZone = 'Asia/Jakarta') {
   const m = parts.find(p => p.type === 'minute').value;
   return `${h}:${m}`;
 }
+
+// Fungsi yang telah diperbaiki
 function formatRFC3339Local(date, timeZone = 'Asia/Jakarta', offset = '+07:00') {
   const ymd = formatLocalDateYMD(date, timeZone);
   const hm = formatLocalHM(date, timeZone);
   return `${ymd}T${hm}:00${offset}`;
 }
+
 
 // ----------------- PERBAIKAN: PARSER WAKTU YANG LEBIH AKURAT -----------------
 function parseStructuredSchedule(day, timeStartStr, timeEndStr) {
