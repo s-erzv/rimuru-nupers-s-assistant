@@ -12,7 +12,7 @@ const formatIDDateTime = (seconds) => {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: 'Asia/Jakarta', 
+      timeZone: 'Asia/Jakarta',
     });
   } catch {
     return '-';
@@ -43,10 +43,11 @@ function SectionHeader({ icon, title, subtitle }) {
 
 function Card({ children, className = '' }) {
   return (
-    <div className={`rounded-xl border border-slate-200 bg-white shadow ${className}`}>
+    <div className={`rounded-xl border border-slate-200 bg-white shadow-sm ${className}`}>
       {children}
     </div>
   );
+  
 }
 
 function Stat({ label, value, hint, tone = 'default' }) {
@@ -214,60 +215,6 @@ function FinanceList({ finances }) {
 }
 
 // ————————————————————————————————————————————————
-// Settings Page — added for health check
-// ————————————————————————————————————————————————
-function SettingsPage() {
-  const [healthStatus, setHealthStatus] = useState('Checking...');
-  const [tone, setTone] = useState('default');
-
-  // Gunakan URL lengkap
-  const fetchHealthz = async () => {
-    try {
-      setHealthStatus('Checking...');
-      setTone('default');
-      const res = await fetchWithAuth('https://rimuru-backend.up.railway.app/api/healthz');
-      if (res.ok) {
-        setHealthStatus('OK');
-        setTone('positive');
-      } else {
-        setHealthStatus('Error');
-        setTone('negative');
-      }
-    } catch (err) {
-      setHealthStatus('Error');
-      setTone('negative');
-      console.error('Health check failed', err);
-    }
-  };
-
-  useEffect(() => {
-    fetchHealthz();
-  }, []);
-
-  return (
-    <div className="p-6">
-      <SectionHeader
-        title="Settings"
-        subtitle="Application status"
-        icon={
-          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.178.11.37.206.572.288z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-        }
-      />
-      <Card className="p-4 mb-3 flex items-center justify-between">
-        <div className="text-sm font-medium text-slate-900">Backend Connection</div>
-        <Badge tone={tone}>{healthStatus}</Badge>
-      </Card>
-      <button onClick={fetchHealthz} className="w-full rounded-md border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-        Retry
-      </button>
-    </div>
-  );
-}
-
-// ————————————————————————————————————————————————
 // Main App Component
 // ————————————————————————————————————————————————
 function MainApp() {
@@ -281,22 +228,22 @@ function MainApp() {
 
   // Gunakan URL lengkap untuk produksi dan path relatif untuk dev proxy
   const API_BASE_URL = 'https://rimuru-backend.up.railway.app';
-  
+
   const fetchWithAuth = async (url, options = {}) => {
     const token = localStorage.getItem('auth_token');
     if (!token) {
-        setErrorMessage('Sesi habis, silakan login ulang.');
-        throw new Error('No auth token found');
+      setErrorMessage('Sesi habis, silakan login ulang.');
+      throw new Error('No auth token found');
     }
     const headers = { ...options.headers, 'Authorization': token };
     const response = await fetch(`${API_BASE_URL}${url}`, { ...options, headers });
     if (response.status === 401) {
-        localStorage.removeItem('auth_token');
-        window.location.reload();
+      localStorage.removeItem('auth_token');
+      window.location.reload();
     }
     return response;
   }
-  
+
   const registerForPush = async () => {
     const firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
     const messaging = getMessaging(firebaseApp);
@@ -394,11 +341,11 @@ function MainApp() {
   const TabButton = ({ id, icon, label }) => (
     <button
       onClick={() => setActiveTab(id)}
-      className={`flex flex-col items-center justify-center gap-1 w-full p-2 transition-colors
+      className={`flex flex-col items-center justify-center gap-0.5 w-full p-1 transition-colors
         ${activeTab === id ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
     >
-      <span className="h-6 w-6">{icon}</span>
-      <span className="text-[10px] font-medium">{label}</span>
+      <span className="h-5 w-5">{icon}</span>
+      <span className="text-[9px] font-medium">{label}</span>
     </button>
   );
 
@@ -407,10 +354,8 @@ function MainApp() {
       {/* Header — compact, sticky */}
       <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-slate-900 text-white flex items-center justify-center">
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l7 4v10l-7 4-7-4V7l7-4z" />
-            </svg>
+          <div className="h-9 w-9 rounded-full overflow-hidden flex items-center justify-center">
+            <img src="/rimuru.png" alt="Rimuru Avatar" className="w-full h-full object-cover" />
           </div>
           <div>
             <h1 className="text-base font-semibold">Nupers's Assistant</h1>
@@ -483,7 +428,7 @@ function MainApp() {
                         m.sender === 'user'
                           ? 'bg-slate-900 text-white border-slate-900'
                           : 'bg-white text-slate-900 border-slate-200'
-                      } p-3 shadow`}
+                      } p-3 shadow-md`}
                     >
                       <ReactMarkdown
                         components={{
@@ -519,24 +464,9 @@ function MainApp() {
                   </svg>
                 </button>
               </form>
-
-              {/* Quick actions */}
-              <div className="mt-2 flex flex-wrap gap-2">
-                {['Schedule a meeting tomorrow at 10', 'Log lunch expense 15000', 'Log salary income 5000000', 'Ringkas keuanganku minggu ini', 'Tampilkan jadwalku bulan ini'].map(
-                  (preset, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setInput(preset)}
-                      className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 hover:bg-slate-50"
-                    >
-                      {preset}
-                    </button>
-                  )
-                )}
-              </div>
             </div>
           </div>
-        ) : activeTab === 'data' ? (
+        ) : (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card className="h-auto lg:h-[calc(100vh-220px)] overflow-y-auto">
               <ScheduleList schedules={schedules} />
@@ -545,13 +475,11 @@ function MainApp() {
               <FinanceList finances={finances} />
             </Card>
           </div>
-        ) : (
-          <SettingsPage />
         )}
       </div>
 
       {/* Mobile Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-slate-200 p-2 lg:hidden">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-slate-200 p-1.5 lg:hidden">
         <div className="flex justify-around">
           <TabButton
             id="chat"
@@ -568,16 +496,6 @@ function MainApp() {
             icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h18M3 9h18M3 15h18M3 21h18" />
-              </svg>
-            }
-          />
-          <TabButton
-            id="settings"
-            label="Settings"
-            icon={
-              <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.178.11.37.206.572.288z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             }
           />
