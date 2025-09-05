@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { initializeApp, getApps } from 'firebase/app';
 import { getMessaging, getToken, isSupported } from 'firebase/messaging';
@@ -47,7 +47,6 @@ function Card({ children, className = '' }) {
       {children}
     </div>
   );
-  
 }
 
 function Stat({ label, value, hint, tone = 'default' }) {
@@ -222,9 +221,11 @@ function MainApp() {
   const [input, setInput] = useState('');
   const [schedules, setSchedules] = useState([]);
   const [finances, setFinances] = useState([]);
-  const [activeTab, setActiveTab] = useState('chat');
+  const [isChatView, setIsChatView] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [isFirstLoad, setIsFirstLoad] = useState(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   // Gunakan URL lengkap untuk produksi dan path relatif untuk dev proxy
   const API_BASE_URL = 'https://rimuru-backend.up.railway.app';
@@ -301,8 +302,8 @@ function MainApp() {
   };
 
   useEffect(() => {
-    if (activeTab === 'data') fetchAllData();
-  }, [activeTab]);
+    if (!isChatView) fetchAllData();
+  }, [isChatView]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -337,41 +338,82 @@ function MainApp() {
       setErrorMessage('There was an error sending your message. Please try again.');
     }
   };
+  
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [menuRef]);
 
-  const TabButton = ({ id, icon, label }) => (
-    <button
-      onClick={() => setActiveTab(id)}
-      className={`flex flex-col items-center justify-center gap-0.5 w-full p-1 transition-colors
-        ${activeTab === id ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-    >
-      <span className="h-5 w-5">{icon}</span>
-      <span className="text-[9px] font-medium">{label}</span>
-    </button>
-  );
+  const handleMenuAction = (action) => {
+    setIsMenuOpen(false);
+    if (action === 'dashboard') {
+      setIsChatView(false);
+    } else if (action === 'logout') {
+      localStorage.removeItem('auth_token');
+      window.location.reload();
+    } else if (action === 'chat') {
+      setIsChatView(true);
+    }
+  }
 
   return (
     <div className="flex h-screen w-full flex-col bg-slate-50 text-slate-900">
       {/* Header — compact, sticky */}
       <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-full overflow-hidden flex items-center justify-center">
+          <div className="h-9 w-9 rounded-full overflow-hidden flex-shrink-0">
             <img src="/rimuru.png" alt="Rimuru Avatar" className="w-full h-full object-cover" />
           </div>
-          <div>
+          <div className="flex-grow">
             <h1 className="text-base font-semibold">Nupers's Assistant</h1>
             <p className="text-xs text-slate-500">Your personal hub</p>
           </div>
-          {/* Logout button */}
-          <div className="ml-auto">
+          {/* Action button with dropdown */}
+          <div className="relative flex-shrink-0" ref={menuRef}>
             <button
-              onClick={() => {
-                localStorage.removeItem('auth_token');
-                window.location.reload();
-              }}
-              className="text-sm text-slate-500 hover:text-slate-900 transition-colors"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="h-9 w-9 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors"
+              aria-label="Open menu"
             >
-              Logout
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+              </svg>
             </button>
+            {isMenuOpen && (
+              <div className="absolute right-0 top-10 mt-2 w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-20">
+                <div className="py-1">
+                  {isChatView ? (
+                    <button
+                      onClick={() => handleMenuAction('dashboard')}
+                      className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                    >
+                      Dashboard
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleMenuAction('chat')}
+                      className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                    >
+                      Chat
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleMenuAction('logout')}
+                    className="block w-full text-left px-4 py-2 text-sm text-rose-600 hover:bg-slate-100"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -387,7 +429,7 @@ function MainApp() {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto w-full max-w-2xl mx-auto px-4 py-4 sm:px-6">
-        {activeTab === 'chat' ? (
+        {isChatView ? (
           <div className="flex h-full flex-col">
             <div className="flex-1 overflow-y-auto space-y-3 pb-4">
               {messages.map((m, i) => (
@@ -476,30 +518,6 @@ function MainApp() {
             </Card>
           </div>
         )}
-      </div>
-
-      {/* Mobile Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-slate-200 p-1.5 lg:hidden">
-        <div className="flex justify-around">
-          <TabButton
-            id="chat"
-            label="Chat"
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
-          />
-          <TabButton
-            id="data"
-            label="Dashboard"
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h18M3 9h18M3 15h18M3 21h18" />
-              </svg>
-            }
-          />
-        </div>
       </div>
     </div>
   );
