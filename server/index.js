@@ -226,27 +226,22 @@ function parseStructuredSchedule(day, timeStartStr, timeEndStr) {
   }
 
   // Handle time parsing and setting more accurately
-  if (timeStartStr) {
-    const [sh, sm] = timeStartStr.split(':').map(n => parseInt(n, 10));
-    const [eh, em] = (timeEndStr || '').split(':').map(n => parseInt(n, 10));
-    
-    startTime = new Date(targetDate);
-    startTime.setHours(sh, sm || 0, 0, 0);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const currentDay = now.getDate();
 
-    if (timeEndStr) {
-        endTime = new Date(targetDate);
-        endTime.setHours(eh, em || 0, 0, 0);
-    } else {
-        endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // Default to 1 hour if no end time
-    }
-  } else {
-    startTime = new Date(targetDate);
-    startTime.setHours(0, 0, 0, 0);
-    endTime = new Date(targetDate);
-    endTime.setHours(23, 59, 0, 0);
-  }
-  return { startTime, endTime, recurrence, hadExplicitTime: !!(timeStartStr||timeEndStr) };
+  const [sh, sm] = (timeStartStr || '00:00').split(':').map(n => parseInt(n, 10));
+  const [eh, em] = (timeEndStr || (timeStartStr ? `${sh + 1}:00` : '23:59')).split(':').map(n => parseInt(n, 10));
+
+  startTime = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), sh, sm || 0, 0, 0);
+  endTime = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), eh, em || 0, 0, 0);
+  
+  const hadExplicitTime = !!(timeStartStr || timeEndStr);
+  
+  return { startTime, endTime, recurrence, hadExplicitTime };
 }
+
 
 // Helper untuk mengirim notifikasi FCM
 async function sendPushNotification(title, body) {
