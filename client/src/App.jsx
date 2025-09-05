@@ -279,7 +279,7 @@ function MainApp() {
   const [isFirstLoad, setIsFirstLoad] = useState(true);
 
   // Use base URL for production and relative path for dev proxy
-  const API_BASE_URL = import.meta.env.PROD ? import.meta.env.VITE_API_BASE : '';
+  const API_BASE_URL = 'https://rimuru-backend.up.railway.app';
   
   const fetchWithAuth = async (url, options = {}) => {
     const token = localStorage.getItem('auth_token');
