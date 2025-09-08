@@ -26,6 +26,24 @@ function must(name) {
   return v;
 }
 
+// --- Helper for FCM ---
+// Fungsi ini dipindahkan ke atas agar bisa diakses oleh handlers di bawah.
+async function sendPushNotification(title, body) {
+  try {
+    const snapshot = await db.collection('fcmTokens').get();
+    const tokens = snapshot.docs.map(doc => doc.id);
+    if (tokens.length === 0) {
+      console.warn('Tidak ada token FCM yang terdaftar.');
+      return;
+    }
+    const message = { notification: { title, body }, tokens };
+    const response = await admin.messaging().sendMulticast(message);
+    console.log('Notifikasi terkirim:', response.successCount);
+  } catch (error) {
+    console.error('Error saat mengirim notifikasi:', error);
+  }
+}
+
 // ===================== API INITIALIZATIONS =====================
 let db, calendar, sheets, tasks, gmail;
 
@@ -126,7 +144,7 @@ app.get('/oauth2callback/gmail', async (req, res) => {
   }
 });
 
-// --- APP CONFIG ---
+// ----------------- APP CONFIG -----------------
 const CALENDAR_ID = 'sarahfajriarahmah@gmail.com';
 const SPREADSHEET_ID = '144JyNngIWCm97EAgUEmNphCExkxSaxd6KDSsIVPytIY';
 const WEEKLY_BUDGET = 500000;
@@ -137,11 +155,13 @@ const genAI = new GoogleGenerativeAI(must('GEMINI_API_KEY'));
 const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 // --- Import Handlers ---
+// Semua fungsi handler sekarang diimpor dari file-file terpisah
 const { schedule, task, schedule_query, auto_schedule, free_time_query } = require('./handlers/schedules')(db, calendar, CALENDAR_ID, tasksOAuth, sendPushNotification);
 const { expense, income, budget_query, finance_summary } = require('./handlers/finances')(db, sheets, SPREADSHEET_ID, DAILY_FOOD_BUDGET, WEEKLY_BUDGET, sendPushNotification);
-const { habit_track, habit_query, set_goal, goal_progress } = require('./handlers/habits')(db, sendPushNotification);
+const { habit_track, habit_query, set_goal, goal_progress } = require('./handlers/habits')(db);
 const { general, delete_item, edit_item, email_query, other_summary } = require('./handlers/general')(db, model, gmailOAuth);
 
+// Daftarkan semua handler dalam satu objek
 const routeHandlers = {
   'general': general,
   'schedule': schedule,
