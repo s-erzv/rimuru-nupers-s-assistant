@@ -1,7 +1,7 @@
 const { parseStructuredSchedule, formatRFC3339Local, formatDateYMD } = require('../utils/dateUtils');
 const { autoSchedule } = require('../autoScheduler');
 
-module.exports = (db, calendar, CALENDAR_ID, tasksOAuth, sendPushNotification, admin) => {
+module.exports = (db, calendar, CALENDAR_ID, tasksOAuth, sendPushNotification, admin, model) => {
   const timeZone = 'Asia/Jakarta';
   
   return {
@@ -68,7 +68,8 @@ module.exports = (db, calendar, CALENDAR_ID, tasksOAuth, sendPushNotification, a
       const now = new Date();
       let startDate, endDate;
     
-      // Determine date range
+      const timeZone = 'Asia/Jakarta';
+    
       if (period === 'today') {
         startDate = new Date(now.toLocaleString('en-US', { timeZone }));
         startDate.setHours(0, 0, 0, 0);
@@ -123,15 +124,19 @@ module.exports = (db, calendar, CALENDAR_ID, tasksOAuth, sendPushNotification, a
       }
     
       try {
-        const snapshot = await db.collection('schedules')
-          .where('date', '>=', admin.firestore.Timestamp.fromDate(startDate))
-          .where('date', '<=', admin.firestore.Timestamp.fromDate(endDate))
-          .orderBy('date', 'asc')
-          .get();
+        // MENGAMBIL JADWAL DARI GOOGLE CALENDAR
+        const eventsRes = await calendar.events.list({
+          calendarId: CALENDAR_ID,
+          timeMin: startDate.toISOString(),
+          timeMax: endDate.toISOString(),
+          singleEvents: true,
+          orderBy: 'startTime',
+        });
+        const events = eventsRes.data.items || [];
     
-        const items = snapshot.docs.map(doc => ({
-          event: doc.data().content,
-          date: doc.data().date?.toDate()?.toISOString(), 
+        const items = events.map(event => ({
+          event: event.summary,
+          date: event.start.dateTime || event.start.date,
         }));
     
         if (items.length === 0) {
@@ -178,16 +183,18 @@ module.exports = (db, calendar, CALENDAR_ID, tasksOAuth, sendPushNotification, a
       endOfWeek.setHours(23, 59, 59, 999);
 
       try {
-        const snapshot = await db.collection('schedules')
-          .where('date', '>=', admin.firestore.Timestamp.fromDate(startOfWeek))
-          .where('date', '<=', admin.firestore.Timestamp.fromDate(endOfWeek))
-          .orderBy('date', 'asc')
-          .get();
-        
-        const schedules = snapshot.docs.map(doc => ({
-            event: doc.data().content,
-            date: doc.data().date?.toDate(),
-        })).filter(s => s.date);
+        // MENGAMBIL JADWAL DARI GOOGLE CALENDAR
+        const eventsRes = await calendar.events.list({
+          calendarId: CALENDAR_ID,
+          timeMin: startOfWeek.toISOString(),
+          timeMax: endOfWeek.toISOString(),
+          singleEvents: true,
+          orderBy: 'startTime',
+        });
+        const schedules = (eventsRes.data.items || []).map(event => ({
+          event: event.summary,
+          date: new Date(event.start.dateTime || event.start.date),
+        }));
 
         if (schedules.length === 0) {
             return res.json({ text: `Wah, jadwal lo kosong banget minggu ini. Bebas deh mau ${topic} kapan aja!` });

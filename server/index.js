@@ -28,7 +28,6 @@ function must(name) {
 }
 
 // --- Helper for FCM ---
-// Fungsi ini dipindahkan ke atas agar bisa diakses oleh handlers di bawah.
 async function sendPushNotification(title, body) {
   try {
     const snapshot = await db.collection('fcmTokens').get();
@@ -52,7 +51,6 @@ try {
   const serviceAccount = JSON.parse(must('FIREBASE_SERVICE_ACCOUNT_JSON'));
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    // Menambahkan projectId untuk inisialisasi Firebase Messaging
     projectId: serviceAccount.project_id,
   });
   db = admin.firestore();
@@ -158,9 +156,7 @@ const genAI = new GoogleGenerativeAI(must('GEMINI_API_KEY'));
 const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 // --- Import Handlers ---
-// Semua fungsi handler sekarang diimpor dari file-file terpisah
-// Variabel admin sekarang juga dikirimkan
-const { schedule, task, schedule_query, auto_schedule, free_time_query } = require('./handlers/schedules')(db, calendar, CALENDAR_ID, tasksOAuth, sendPushNotification, admin);
+const { schedule, task, schedule_query, auto_schedule, free_time_query } = require('./handlers/schedules')(db, calendar, CALENDAR_ID, tasksOAuth, sendPushNotification, admin, model);
 const { expense, income, budget_query, finance_summary } = require('./handlers/finances')(db, sheets, SPREADSHEET_ID, DAILY_FOOD_BUDGET, WEEKLY_BUDGET, sendPushNotification, admin);
 const { habit_track, habit_query, set_goal, goal_progress } = require('./handlers/habits')(db, admin);
 const { general, delete_item, edit_item, email_query, other_summary } = require('./handlers/general')(db, model, gmailOAuth, admin);
