@@ -1,6 +1,6 @@
 const admin = require('firebase-admin');
 
-module.exports = (db) => {
+module.exports = (db, admin) => {
   return {
     habit_track: async (req, res, data) => {
       const { habit, status } = data;

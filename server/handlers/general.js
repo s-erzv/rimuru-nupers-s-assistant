@@ -1,7 +1,7 @@
 const admin = require('firebase-admin');
 const { autoSchedule } = require('../autoScheduler');
 
-module.exports = (db, model, gmailOAuth) => {
+module.exports = (db, model, gmailOAuth, admin) => {
   return {
     general: async (req, res, data) => {
       const generalResponse = await model.generateContent(data.query);
@@ -75,7 +75,7 @@ module.exports = (db, model, gmailOAuth) => {
           const payload = msg.data.payload || {};
           const headers = payload.headers || [];
           const subject = getHeader(headers, 'Subject');
-          const from = getHeader(headers, 'From');
+          const from = getHeader(headers, 'Date');
           const date = getHeader(headers, 'Date');
           const snippet = msg.data.snippet || '';
           const bodyText = extractPlainText(payload) || snippet;

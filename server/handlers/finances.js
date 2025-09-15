@@ -1,6 +1,6 @@
 const admin = require('firebase-admin');
 
-module.exports = (db, sheets, SPREADSHEET_ID, DAILY_FOOD_BUDGET, WEEKLY_BUDGET, sendPushNotification) => {
+module.exports = (db, sheets, SPREADSHEET_ID, DAILY_FOOD_BUDGET, WEEKLY_BUDGET, sendPushNotification, admin) => {
   return {
     expense: async (req, res, data) => {
       const { item, amount } = data;

@@ -1,7 +1,7 @@
 const { parseStructuredSchedule, formatRFC3339Local, formatDateYMD } = require('../utils/dateUtils');
 const { autoSchedule } = require('../autoScheduler');
 
-module.exports = (db, calendar, CALENDAR_ID, tasksOAuth, sendPushNotification) => {
+module.exports = (db, calendar, CALENDAR_ID, tasksOAuth, sendPushNotification, admin) => {
   const timeZone = 'Asia/Jakarta';
   
   return {
